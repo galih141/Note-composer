@@ -36,8 +36,30 @@ code{font-family:ui-monospace,Menlo,monospace;background:var(--bg);padding:1px 5
 </head>
 <body>
 <main>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+<div>
 <h1>Note Composer</h1>
 <p class="sub">Write chords and notes, pick instruments, listen, then download as MP3.</p>
+</div>
+<button id="aiToggle" aria-expanded="false" style="padding:6px 12px;font-size:13px;white-space:nowrap;margin-top:4px">✨ AI</button>
+</div>
+
+<div class="card" id="aiCard" style="display:none">
+<label for="aiPrompt">Describe the music you want (AI)</label>
+<textarea id="aiPrompt" placeholder="e.g. A calm, dreamy lo-fi tune in A minor for electric piano and bass, about 8 bars"></textarea>
+<div class="row" style="margin-top:10px">
+<button class="p" id="aiGo">Generate notes with AI</button>
+</div>
+<details style="margin-top:12px">
+<summary style="cursor:pointer;font-size:14px;color:var(--mute)">Gemini settings</summary>
+<div class="grid" style="margin-top:10px">
+<div><label for="aiKey">Gemini API key</label><input id="aiKey" type="password" autocomplete="off" placeholder="Paste your key" style="width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font:15px system-ui,sans-serif"></div>
+<div><label for="aiModel">Model</label><input id="aiModel" type="text" value="gemini-3.5-flash" style="width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font:15px system-ui,sans-serif"></div>
+</div>
+<p class="legend" style="margin:8px 0 0">The key is saved only in this browser (localStorage) and sent straight to Google. Don't hardcode it in a public GitHub repo.</p>
+</details>
+<div id="aiSt" style="font-size:14px;color:var(--mute);margin-top:8px;min-height:20px"></div>
+</div>
 
 <div class="card">
 <label>Presets</label>
@@ -254,6 +276,74 @@ function toWav(f32){
   for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, f32[i])) * 32767, true);
   return new Blob([buf], {type:'audio/wav'});
 }
+
+/* ---------- AI note generation (Gemini) ---------- */
+$('aiToggle').onclick = () => {
+  const c = $('aiCard'), open = c.style.display === 'none';
+  c.style.display = open ? 'block' : 'none';
+  $('aiToggle').setAttribute('aria-expanded', open);
+  if (open) $('aiPrompt').focus();
+};
+// Optional: put your key here for private/local use only. Never commit a real key to a public repo.
+const DEFAULT_API_KEY = '';
+try { $('aiKey').value = localStorage.getItem('gemini_key') || DEFAULT_API_KEY; } catch (e) { $('aiKey').value = DEFAULT_API_KEY; }
+
+function aiSystemPrompt(){
+  return `You are a music composer for a web app that plays text notation. Reply with JSON only, no markdown.
+
+JSON shape:
+{"chords":"...","melody":"...","bpm":96,"melodyInstrument":"piano","chordInstrument":"piano","chordStyle":"block"}
+
+Notation rules:
+- "chords": chord names separated by commas, one chord per bar. Example: "Am7, Dm7, G7, Cmaj7". Allowed qualities: major, m, 7, m7, maj7, 6, 9, dim, aug, sus2, sus4.
+- "melody": bars separated by commas. Inside a bar, notes are separated by "-". Example bar: "E4-G4-A4-C5".
+- Note format: letter A-G, optional # or b, then octave number (e.g. C4, F#4, Bb3). Keep melody between C3 and C6.
+- A note followed by "--" (e.g. "C5--") is held longer (2 beats). A normal note is 1 beat.
+- Use "R" for a rest (e.g. "E4-R-G4").
+- Use "," only to separate bars. Do not use any other symbols or words.
+- The chord at position N plays under melody bar N, so give the same number of bars in both.
+- Example melody: "E4-G4-A4-C5--, B4-A4-G4-E4, D4-E4-G4-A4-G4, E4-D4-C4--"
+
+Other fields:
+- "bpm": integer 40-220 matching the mood.
+- "melodyInstrument" and "chordInstrument": one of ${Object.keys(INS).join(', ')}.
+- "chordStyle": one of block, strum, arp (use strum for guitar).
+Make the music fit the user's description (mood, key, style, length). Default to 4-8 bars.`;
+}
+
+$('aiGo').onclick = async () => {
+  const ai = $('aiSt'), prompt = $('aiPrompt').value.trim(), key = $('aiKey').value.trim(), model = $('aiModel').value.trim() || 'gemini-3.5-flash';
+  const say = (m, e) => { ai.textContent = m; ai.style.color = e ? '#dc2626' : 'var(--mute)'; };
+  if (!prompt) return say('Describe the music you want first.', true);
+  if (!key) return say('Open "Gemini settings" and paste your API key.', true);
+  try { localStorage.setItem('gemini_key', key); } catch (e) {}
+  $('aiGo').disabled = true; say('Asking Gemini…');
+  try {
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json', 'x-goog-api-key': key},
+      body: JSON.stringify({
+        systemInstruction: {parts:[{text: aiSystemPrompt()}]},
+        contents: [{role:'user', parts:[{text: prompt}]}],
+        generationConfig: {responseMimeType:'application/json', temperature: 1}
+      })
+    });
+    const j = await res.json();
+    if (!res.ok) throw new Error((j.error && j.error.message) || ('Request failed (' + res.status + ')'));
+    const txt = (j.candidates && j.candidates[0] && j.candidates[0].content.parts.map(p => p.text || '').join('')) || '';
+    const o = JSON.parse(txt.replace(/```json|```/g, '').trim());
+    if (!o.melody) throw new Error('Gemini returned no melody.');
+    parseMelody(o.melody); // validate before applying
+    (o.chords || '').split(',').map(s => s.trim()).filter(Boolean).forEach(parseChord);
+    $('mel').value = o.melody; $('chords').value = o.chords || '';
+    if (INS[o.melodyInstrument]) $('mi').value = o.melodyInstrument;
+    if (INS[o.chordInstrument]) $('ci').value = o.chordInstrument;
+    if (['block','strum','arp'].includes(o.chordStyle)) $('cs').value = o.chordStyle;
+    if (+o.bpm) $('bpm').value = Math.min(220, Math.max(40, Math.round(+o.bpm)));
+    say('Notes generated. Press "Generate & play" to listen.');
+  } catch (e) { say('AI error: ' + e.message, true); }
+  $('aiGo').disabled = false;
+};
 
 let ctx = null, src = null, data = null, raf = 0, t0 = 0, dur = 0;
 const st = (m, e) => { $('st').textContent = m; $('st').className = e ? 'err' : ''; };
