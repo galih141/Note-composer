@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Note Composer</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f6f3ee;--card:#fff;--ink:#22201c;--mute:#7a746a;--line:#ded8cc;--acc:#c2410c;--accink:#fff}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171513;--card:#211e1b;--ink:#f1ece4;--mute:#a39b8e;--line:#3a352f;--acc:#f97316;--accink:#1a1100}}
+:root[data-theme="dark"]{--bg:#171513;--card:#211e1b;--ink:#f1ece4;--mute:#a39b8e;--line:#3a352f;--acc:#f97316;--accink:#1a1100}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Georgia,"Times New Roman",serif}
+main{max-width:760px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:28px;margin:0 0 4px;letter-spacing:-.5px}
+.sub{color:var(--mute);margin:0 0 20px;font-family:system-ui,sans-serif;font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px;font-family:system-ui,sans-serif}
+label{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin:0 0 4px}
+textarea,select,input[type=number]{width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font:15px ui-monospace,Menlo,monospace}
+select,input[type=number]{font-family:system-ui,sans-serif}
+textarea{min-height:76px;resize:vertical}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+button{font:600 15px system-ui,sans-serif;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:10px 16px;cursor:pointer}
+button.p{background:var(--acc);color:var(--accink);border-color:var(--acc)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:12px}
+.bar i{display:block;height:100%;width:0;background:var(--acc)}
+#st{font-size:14px;color:var(--mute);margin-top:8px;min-height:20px}
+#st.err{color:#dc2626}
+.legend{font-size:13px;color:var(--mute);line-height:1.7}
+code{font-family:ui-monospace,Menlo,monospace;background:var(--bg);padding:1px 5px;border-radius:4px;color:var(--ink)}
+.chips button{padding:6px 12px;font-size:13px}
+</style>
+</head>
+<body>
+<main>
+<h1>Note Composer</h1>
+<p class="sub">Write chords and notes, pick instruments, listen, then download as MP3.</p>
+
+<div class="card">
+<label>Presets</label>
+<div class="row chips">
+<button data-p="piano">Piano example</button>
+<button data-p="guitar">Guitar example</button>
+</div>
+</div>
+
+<div class="card">
+<label for="chords">Chords (one per bar, comma separated)</label>
+<textarea id="chords">Am7, Dm7, G7, Cmaj7</textarea>
+<div style="height:12px"></div>
+<label for="mel">Melody (bars separated by commas)</label>
+<textarea id="mel">E4-G4-A4-C5--, B4-A4-G4-E4, D4-E4-G4-A4-G4, E4-D4-C4--</textarea>
+<p class="legend" style="margin:10px 0 0">
+<code>-</code> between notes = normal note (1 beat) &nbsp;
+<code>--</code> after a note = held longer (2 beats) &nbsp;
+<code>,</code> = new bar &nbsp;
+<code>R</code> = rest. Each chord plays for the length of its bar. Sharps/flats: <code>F#4</code>, <code>Bb3</code>.</p>
+</div>
+
+<div class="card">
+<div class="grid">
+<div><label for="mi">Melody instrument</label><select id="mi"></select></div>
+<div><label for="ci">Chord instrument</label><select id="ci"></select></div>
+<div><label for="cs">Chord style</label>
+<select id="cs"><option value="block">Block (held)</option><option value="strum">Strum</option><option value="arp">Arpeggio</option></select></div>
+<div><label for="bpm">Tempo (BPM)</label><input id="bpm" type="number" min="40" max="220" value="96"></div>
+</div>
+</div>
+
+<div class="card">
+<div class="row">
+<button class="p" id="play">Generate &amp; play</button>
+<button id="stop" disabled>Stop</button>
+<button id="dl" disabled>Download MP3</button>
+</div>
+<div class="bar"><i id="pg"></i></div>
+<div id="st"></div>
+</div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
+<script>
+const SR = 44100;
+// harmonics [multiplier, amp]; a=attack s; dec=decay rate; sus=sustain floor; r=release s; vib=vibrato depth
+const INS = {
+  piano:   {n:'Piano',        h:[[1,1],[2,.5],[3,.28],[4,.14],[5,.07]], a:.004, dec:1.4, sus:0, r:.25, kd:true},
+  guitar:  {n:'Acoustic guitar', ks:true},
+  epiano:  {n:'Electric piano', h:[[1,1],[2,.1],[3,.35],[4,.05],[6,.08]], a:.006, dec:1.2, sus:.05, r:.3},
+  organ:   {n:'Organ',        h:[[.5,.4],[1,1],[2,.6],[3,.4],[4,.3],[6,.2]], a:.02, dec:0, sus:1, r:.08},
+  strings: {n:'Strings',      h:[[1,1],[2,.5],[3,.35],[4,.25],[5,.15],[6,.1]], a:.25, dec:0, sus:1, r:.4, vib:.004},
+  flute:   {n:'Flute',        h:[[1,1],[2,.12],[3,.05]], a:.07, dec:0, sus:1, r:.12, vib:.006},
+  synth:   {n:'Synth lead',   h:[[1,1],[2,.5],[3,.33],[4,.25],[5,.2],[6,.17],[7,.14]], a:.01, dec:2, sus:.7, r:.12},
+  bass:    {n:'Bass',         h:[[1,1],[2,.35],[3,.12]], a:.01, dec:1.6, sus:.2, r:.15},
+  marimba: {n:'Marimba',      h:[[1,1],[4,.35],[10,.08]], a:.002, dec:4, sus:0, r:.1},
+  bell:    {n:'Bell',         h:[[1,1],[2.76,.5],[5.4,.3],[8.93,.15]], a:.002, dec:1.1, sus:0, r:.4}
+};
+const $ = id => document.getElementById(id);
+for (const k in INS) { for (const s of ['mi','ci']) $(s).add(new Option(INS[k].n, k)); }
+$('mi').value = 'piano'; $('ci').value = 'piano';
+
+const PRESETS = {
+  piano:  {mel:'E4-G4-A4-C5--, B4-A4-G4-E4, D4-E4-G4-A4-G4, E4-D4-C4--', ch:'Am7, Dm7, G7, Cmaj7', mi:'piano', ci:'piano', cs:'block'},
+  guitar: {mel:'E4-G4-A4-C5--, B4-A4-G4-E4, D4-E4-G4-A4-G4, E4-D4-C4--', ch:'Am7, Dm7, G7, Cmaj7', mi:'guitar', ci:'guitar', cs:'strum'}
+};
+document.querySelectorAll('[data-p]').forEach(b => b.onclick = () => {
+  const p = PRESETS[b.dataset.p];
+  $('mel').value = p.mel; $('chords').value = p.ch; $('mi').value = p.mi; $('ci').value = p.ci; $('cs').value = p.cs;
+});
+
+const SEMI = {C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+function pc(name){ // pitch class from e.g. "F#", "Bb"
+  let s = SEMI[name[0].toUpperCase()];
+  if (name[1] === '#') s++; else if (name[1] === 'b') s--;
+  return s;
+}
+const midiHz = m => 440 * Math.pow(2, (m - 69) / 12);
+
+function parseMelody(text){
+  const bars = []; let first = true;
+  for (let raw of text.replace(/\./g,'').split(',')) {
+    raw = raw.trim(); if (!raw) continue;
+    const notes = []; let m; const re = /([A-Ga-g][#b]?\d|[Rr])(-*)/g;
+    const left = raw.replace(re, '').replace(/\s+/g,'');
+    if (left) throw new Error('Cannot read "' + left + '" in melody bar: ' + raw);
+    while ((m = re.exec(raw))) {
+      const t = m[1], beats = m[2].length >= 2 ? 2 : 1;
+      if (/^[Rr]$/.test(t)) notes.push({rest:true, beats});
+      else {
+        const oct = parseInt(t.slice(-1)), p = pc(t.slice(0,-1));
+        notes.push({midi:(oct + 1) * 12 + p, beats});
+      }
+    }
+    bars.push(notes);
+  }
+  return bars;
+}
+function parseChord(c){
+  const m = /^([A-Ga-g][#b]?)(.*)$/.exec(c.trim());
+  if (!m) throw new Error('Cannot read chord "' + c + '"');
+  const root = pc(m[1][0].toUpperCase() + m[1].slice(1)), q = m[2];
+  let iv;
+  if (/^dim/.test(q)) iv = [0,3,6]; else if (/^aug|^\+/.test(q)) iv = [0,4,8];
+  else if (/^sus2/.test(q)) iv = [0,2,7]; else if (/^sus/.test(q)) iv = [0,5,7];
+  else if (/^m(?!aj)|^min/.test(q)) iv = [0,3,7]; else iv = [0,4,7];
+  if (/maj7|M7/.test(q)) iv.push(11);
+  else if (/dim7/.test(q)) iv.push(9);
+  else if (/6/.test(q)) iv.push(9);
+  else if (/7|9/.test(q)) iv.push(10);
+  if (/9/.test(q)) iv.push(14);
+  return iv.map(i => 48 + root + i); // root in octave 3
+}
+
+function voice(key, f, dur){
+  const p = INS[key];
+  if (p.ks) { // Karplus-Strong plucked string
+    const N = Math.max(2, Math.round(SR / f)), len = Math.floor(SR * Math.min(dur + .5, 3.5));
+    const buf = new Float32Array(N), out = new Float32Array(len);
+    for (let i = 0; i < N; i++) buf[i] = Math.random() * 2 - 1;
+    let idx = 0, damp = .9965 - Math.min(.003, f / 200000);
+    for (let i = 0; i < len; i++) {
+      const nx = (idx + 1) % N;
+      out[i] = buf[idx];
+      buf[idx] = damp * .5 * (buf[idx] + buf[nx]);
+      idx = nx;
+    }
+    const rel = Math.floor(SR * .25), end = Math.floor(SR * dur);
+    for (let i = 0; i < len; i++) if (i > end) out[i] *= Math.max(0, 1 - (i - end) / rel);
+    return out;
+  }
+  const len = Math.floor(SR * (dur + p.r)), out = new Float32Array(len);
+  const dec = p.kd ? p.dec + f / 500 : p.dec;
+  let norm = 0; p.h.forEach(x => norm += x[1]);
+  const w = 2 * Math.PI * f / SR;
+  for (let i = 0; i < len; i++) {
+    const t = i / SR;
+    let e = t < p.a ? t / p.a : p.sus + (1 - p.sus) * Math.exp(-dec * (t - p.a));
+    if (t > dur) e *= Math.max(0, 1 - (t - dur) / p.r);
+    if (e <= 0) continue;
+    const ph = w * i + (p.vib ? p.vib * Math.sin(2 * Math.PI * 5.2 * t) * f / 5.2 * 0 + p.vib * 40 * Math.sin(2 * Math.PI * 5.2 * t) : 0);
+    let s = 0;
+    for (const [mu, a] of p.h) if (f * mu < SR / 2) s += a * Math.sin(ph * mu);
+    out[i] = s / norm * e;
+  }
+  return out;
+}
+
+function compose(){
+  const mel = parseMelody($('mel').value);
+  const chords = $('chords').value.split(',').map(s => s.trim()).filter(Boolean).map(parseChord);
+  if (!mel.length && !chords.length) throw new Error('Nothing to play. Add some chords or notes.');
+  const bpm = Math.min(220, Math.max(40, +$('bpm').value || 96)), beat = 60 / bpm;
+  const mi = $('mi').value, ci = $('ci').value, cs = $('cs').value;
+  const nBars = Math.max(mel.length, chords.length);
+  const events = []; let t = 0;
+  for (let b = 0; b < nBars; b++) {
+    const notes = mel[b] || [];
+    const bars = notes.reduce((a, n) => a + n.beats, 0) || 4;
+    const barDur = bars * beat;
+    let nt = t;
+    for (const n of notes) { // melody
+      const d = n.beats * beat;
+      if (!n.rest) events.push({ins:mi, f:midiHz(n.midi), start:nt, dur:d * .98, g:.55});
+      nt += d;
+    }
+    const ch = chords[b] !== undefined ? chords[b] : (chords.length ? chords[chords.length - 1] : null);
+    if (ch) {
+      const g = .22;
+      if (cs === 'block') {
+        events.push({ins:ci, f:midiHz(ch[0] - 12), start:t, dur:barDur, g:g * 1.1});
+        ch.forEach(m => events.push({ins:ci, f:midiHz(m), start:t, dur:barDur, g}));
+      } else if (cs === 'strum') {
+        const hits = [0, .5, 1.5, 2.5, 3.5].map(x => x * beat).filter(x => x < barDur);
+        hits.forEach((h, hi) => {
+          const order = hi % 2 ? ch.slice().reverse() : ch;
+          order.forEach((m, k) => events.push({ins:ci, f:midiHz(m), start:t + h + k * .022, dur:Math.max(.4, beat * 1.5), g:g * (hi === 0 ? 1.1 : .8)}));
+        });
+      } else {
+        const seq = [ch[0], ch[1], ch[2], ch[3] || ch[1] + 12, ch[2], ch[1]];
+        for (let i = 0, x = 0; x < barDur - .01; i++, x += beat / 2)
+          events.push({ins:ci, f:midiHz(seq[i % seq.length]), start:t + x, dur:beat * .9, g:g * 1.1});
+      }
+    }
+    t += barDur;
+  }
+  const tail = 1.8, total = Math.ceil((t + tail) * SR), mix = new Float32Array(total);
+  for (const ev of events) {
+    const v = voice(ev.ins, ev.f, ev.dur), o = Math.floor(ev.start * SR);
+    for (let i = 0; i < v.length && o + i < total; i++) mix[o + i] += v[i] * ev.g;
+  }
+  let pk = 0; for (let i = 0; i < total; i++) pk = Math.max(pk, Math.abs(mix[i]));
+  const k = pk > 0 ? .9 / pk : 1; for (let i = 0; i < total; i++) mix[i] *= k;
+  return mix;
+}
+
+function toMp3(f32){
+  const enc = new lamejs.Mp3Encoder(1, SR, 128), i16 = new Int16Array(f32.length);
+  for (let i = 0; i < f32.length; i++) i16[i] = Math.max(-1, Math.min(1, f32[i])) * 32767;
+  const parts = [];
+  for (let i = 0; i < i16.length; i += 1152) {
+    const b = enc.encodeBuffer(i16.subarray(i, i + 1152)); if (b.length) parts.push(new Uint8Array(b));
+  }
+  const e = enc.flush(); if (e.length) parts.push(new Uint8Array(e));
+  return new Blob(parts, {type:'audio/mpeg'});
+}
+function toWav(f32){
+  const n = f32.length, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+  const ws = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  ws(0,'RIFF'); v.setUint32(4, 36 + n * 2, true); ws(8,'WAVEfmt '); v.setUint32(16,16,true); v.setUint16(20,1,true);
+  v.setUint16(22,1,true); v.setUint32(24,SR,true); v.setUint32(28,SR * 2,true); v.setUint16(32,2,true); v.setUint16(34,16,true);
+  ws(36,'data'); v.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, f32[i])) * 32767, true);
+  return new Blob([buf], {type:'audio/wav'});
+}
+
+let ctx = null, src = null, data = null, raf = 0, t0 = 0, dur = 0;
+const st = (m, e) => { $('st').textContent = m; $('st').className = e ? 'err' : ''; };
+function stop(){
+  if (src) { try { src.onended = null; src.stop(); } catch (e) {} src = null; }
+  cancelAnimationFrame(raf); $('stop').disabled = true; $('pg').style.width = '0';
+}
+$('stop').onclick = () => { stop(); st('Stopped.'); };
+$('play').onclick = () => {
+  stop(); st('Generating…'); $('play').disabled = true; $('dl').disabled = true;
+  setTimeout(() => {
+    try {
+      data = compose();
+      ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === 'suspended') ctx.resume();
+      const ab = ctx.createBuffer(1, data.length, SR); ab.copyToChannel(data, 0);
+      src = ctx.createBufferSource(); src.buffer = ab; src.connect(ctx.destination);
+      dur = data.length / SR; t0 = ctx.currentTime; src.start();
+      src.onended = () => { stop(); st('Finished. Ready to download.'); };
+      $('stop').disabled = false; $('dl').disabled = false;
+      st('Playing (' + dur.toFixed(1) + 's)…');
+      const tick = () => { $('pg').style.width = Math.min(100, (ctx.currentTime - t0) / dur * 100) + '%'; raf = requestAnimationFrame(tick); };
+      tick();
+    } catch (e) { st(e.message, true); }
+    $('play').disabled = false;
+  }, 30);
+};
+$('dl').onclick = () => {
+  if (!data) return;
+  st('Encoding…'); $('dl').disabled = true;
+  setTimeout(() => {
+    let blob, ext;
+    if (window.lamejs) { blob = toMp3(data); ext = 'mp3'; st('MP3 ready.'); }
+    else { blob = toWav(data); ext = 'wav'; st('MP3 encoder could not load, downloaded WAV instead.', true); }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'composition.' + ext;
+    document.body.appendChild(a); a.click(); a.remove();
+    $('dl').disabled = false;
+  }, 30);
+};
+</script>
+</body>
+</html>
