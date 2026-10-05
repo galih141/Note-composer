@@ -32,6 +32,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .legend{font-size:13px;color:var(--mute);line-height:1.7}
 code{font-family:ui-monospace,Menlo,monospace;background:var(--bg);padding:1px 5px;border-radius:4px;color:var(--ink)}
 .chips button{padding:6px 12px;font-size:13px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#9ca3af;vertical-align:middle;margin-right:6px}
 </style>
 </head>
 <body>
@@ -41,7 +42,7 @@ code{font-family:ui-monospace,Menlo,monospace;background:var(--bg);padding:1px 5
 <h1>Note Composer</h1>
 <p class="sub">Write chords and notes, pick instruments, listen, then download as MP3.</p>
 </div>
-<button id="aiToggle" aria-expanded="false" style="padding:6px 12px;font-size:13px;white-space:nowrap;margin-top:4px">✨ AI</button>
+<button id="aiToggle" aria-expanded="false" style="padding:6px 12px;font-size:13px;white-space:nowrap;margin-top:4px"><span class="dot"></span>✨ AI</button>
 </div>
 
 <div class="card" id="aiCard" style="display:none">
@@ -54,7 +55,12 @@ code{font-family:ui-monospace,Menlo,monospace;background:var(--bg);padding:1px 5
 <summary style="cursor:pointer;font-size:14px;color:var(--mute)">Gemini settings</summary>
 <div class="grid" style="margin-top:10px">
 <div><label for="aiKey">Gemini API key</label><input id="aiKey" type="password" autocomplete="off" placeholder="Paste your key" style="width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font:15px system-ui,sans-serif"></div>
-<div><label for="aiModel">Model</label><input id="aiModel" type="text" value="gemini-3.5-flash" style="width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font:15px system-ui,sans-serif"></div>
+<div><label for="aiModel">Model</label><input id="aiModel" type="text" value="gemini-3.6-flash" style="width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font:15px system-ui,sans-serif"></div>
+</div>
+<div class="row" style="margin-top:10px;align-items:center">
+<button id="aiTest" style="padding:6px 12px;font-size:13px">Test connection</button>
+<span style="font-size:13px;color:var(--mute)"><span class="dot"></span><span id="aiConn">Not checked</span></span>
+<a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="margin-left:auto;font-size:13px;color:var(--acc)">Get an API key ↗</a>
 </div>
 <p class="legend" style="margin:8px 0 0">The key is saved only in this browser (localStorage) and sent straight to Google. Don't hardcode it in a public GitHub repo.</p>
 </details>
@@ -288,6 +294,27 @@ $('aiToggle').onclick = () => {
 const DEFAULT_API_KEY = '';
 try { $('aiKey').value = localStorage.getItem('gemini_key') || DEFAULT_API_KEY; } catch (e) { $('aiKey').value = DEFAULT_API_KEY; }
 
+
+const DOTC = {idle:'#9ca3af', ok:'#16a34a', busy:'#f59e0b', err:'#dc2626'};
+function setConn(state, text){
+  document.querySelectorAll('.dot').forEach(d => d.style.background = DOTC[state]);
+  $('aiConn').textContent = text; $('aiToggle').title = text;
+}
+async function checkKey(){
+  const key = $('aiKey').value.trim();
+  if (!key) return setConn('idle', 'No API key');
+  setConn('idle', 'Checking…');
+  try {
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1', {headers:{'x-goog-api-key': key}});
+    if (r.ok) setConn('ok', 'Connected, key works');
+    else if (r.status === 400 || r.status === 401 || r.status === 403) setConn('err', 'Key rejected by Google');
+    else setConn('busy', 'Reachable, but Gemini is busy (' + r.status + ')');
+  } catch (e) { setConn('err', "Can't reach Google (network)"); }
+}
+$('aiTest').onclick = () => { try { localStorage.setItem('gemini_key', $('aiKey').value.trim()); } catch (e) {} checkKey(); };
+$('aiKey').addEventListener('change', () => { try { localStorage.setItem('gemini_key', $('aiKey').value.trim()); } catch (e) {} checkKey(); });
+checkKey();
+
 function aiSystemPrompt(){
   return `You are a music composer for a web app that plays text notation. Reply with JSON only, no markdown.
 
@@ -312,24 +339,41 @@ Make the music fit the user's description (mood, key, style, length). Default to
 }
 
 $('aiGo').onclick = async () => {
-  const ai = $('aiSt'), prompt = $('aiPrompt').value.trim(), key = $('aiKey').value.trim(), model = $('aiModel').value.trim() || 'gemini-3.5-flash';
+  const ai = $('aiSt'), prompt = $('aiPrompt').value.trim(), key = $('aiKey').value.trim(), model = $('aiModel').value.trim() || 'gemini-3.6-flash';
   const say = (m, e) => { ai.textContent = m; ai.style.color = e ? '#dc2626' : 'var(--mute)'; };
   if (!prompt) return say('Describe the music you want first.', true);
   if (!key) return say('Open "Gemini settings" and paste your API key.', true);
   try { localStorage.setItem('gemini_key', key); } catch (e) {}
   $('aiGo').disabled = true; say('Asking Gemini…');
   try {
-    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json', 'x-goog-api-key': key},
-      body: JSON.stringify({
-        systemInstruction: {parts:[{text: aiSystemPrompt()}]},
-        contents: [{role:'user', parts:[{text: prompt}]}],
-        generationConfig: {responseMimeType:'application/json', temperature: 1}
-      })
+    const body = JSON.stringify({
+      systemInstruction: {parts:[{text: aiSystemPrompt()}]},
+      contents: [{role:'user', parts:[{text: prompt}]}],
+      generationConfig: {responseMimeType:'application/json', temperature: 1}
     });
-    const j = await res.json();
-    if (!res.ok) throw new Error((j.error && j.error.message) || ('Request failed (' + res.status + ')'));
+    const models = [model, 'gemini-3.5-flash', 'gemini-3.5-flash-lite'].filter((m, i, arr) => arr.indexOf(m) === i);
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    let j = null, firstErr = null;
+    outer: for (const m of models) {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        let res;
+        try {
+          res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(m) + ':generateContent', {
+            method: 'POST', headers: {'Content-Type':'application/json', 'x-goog-api-key': key}, body
+          });
+        } catch (e) { firstErr = firstErr || new Error('Network error. Check your connection.'); break; }
+        const out = await res.json().catch(() => ({}));
+        if (res.ok) { j = out; break outer; }
+        const msg = (out.error && out.error.message) || ('Request failed (' + res.status + ')');
+        firstErr = firstErr || new Error(msg);
+        const busy = [429, 500, 503, 504].includes(res.status) || /high demand|overloaded|unavailable/i.test(msg);
+        if (!busy) { setConn('err', /key|permission/i.test(msg) ? 'Key rejected by Google' : 'Request error'); throw firstErr; } // bad key, bad request, etc.
+        if (attempt < 3) { say('Gemini is busy, retrying (' + attempt + '/3)…'); await wait(1500 * attempt); }
+      }
+      if (m !== models[models.length - 1]) say('Switching to backup model…');
+    }
+    if (!j) setConn(firstErr && /key|permission|API_KEY/i.test(firstErr.message) ? 'err' : 'busy', firstErr && /key|permission|API_KEY/i.test(firstErr.message) ? 'Key rejected by Google' : 'Gemini is busy, try again soon');
+    if (!j) throw new Error((firstErr ? firstErr.message : 'Request failed') + ' (tried again automatically; please wait a minute and retry)');
     const txt = (j.candidates && j.candidates[0] && j.candidates[0].content.parts.map(p => p.text || '').join('')) || '';
     const o = JSON.parse(txt.replace(/```json|```/g, '').trim());
     if (!o.melody) throw new Error('Gemini returned no melody.');
@@ -340,7 +384,7 @@ $('aiGo').onclick = async () => {
     if (INS[o.chordInstrument]) $('ci').value = o.chordInstrument;
     if (['block','strum','arp'].includes(o.chordStyle)) $('cs').value = o.chordStyle;
     if (+o.bpm) $('bpm').value = Math.min(220, Math.max(40, Math.round(+o.bpm)));
-    say('Notes generated. Press "Generate & play" to listen.');
+    setConn('ok', 'Connected, key works'); say('Notes generated. Press "Generate & play" to listen.');
   } catch (e) { say('AI error: ' + e.message, true); }
   $('aiGo').disabled = false;
 };
