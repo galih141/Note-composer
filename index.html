@@ -33,6 +33,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 code{font-family:ui-monospace,Menlo,monospace;background:var(--bg);padding:1px 5px;border-radius:4px;color:var(--ink)}
 .chips button{padding:6px 12px;font-size:13px}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#9ca3af;vertical-align:middle;margin-right:6px}
+input[type=range]{width:100%;accent-color:var(--acc)}
 </style>
 </head>
 <body>
@@ -48,6 +49,8 @@ code{font-family:ui-monospace,Menlo,monospace;background:var(--bg);padding:1px 5
 <div class="card" id="aiCard" style="display:none">
 <label for="aiPrompt">Describe the music you want (AI)</label>
 <textarea id="aiPrompt" placeholder="e.g. A calm, dreamy lo-fi tune in A minor for electric piano and bass, about 8 bars"></textarea>
+<div style="margin-top:10px"><label for="style">Style</label><select id="style">
+<option value="auto">Let AI decide</option><option value="lo-fi / chill">Lo-fi / chill</option><option value="pop">Pop</option><option value="rock">Rock</option><option value="jazz">Jazz</option><option value="EDM / dance">EDM / dance</option><option value="hip-hop">Hip-hop</option><option value="cinematic / epic">Cinematic / epic</option><option value="classical">Classical</option><option value="latin / bossa nova">Latin / bossa nova</option><option value="upbeat / happy">Upbeat / happy</option><option value="dark / tense">Dark / tense</option><option value="folk / acoustic">Folk / acoustic</option></select></div>
 <div class="row" style="margin-top:10px">
 <button class="p" id="aiGo">Generate notes with AI</button>
 </div>
@@ -76,20 +79,21 @@ code{font-family:ui-monospace,Menlo,monospace;background:var(--bg);padding:1px 5
 <div class="row chips">
 <button data-p="piano">Piano example</button>
 <button data-p="guitar">Guitar example</button>
+<button data-p="rock">Rock</button>
+<button data-p="cinema">Cinematic</button>
+<button data-p="edm">EDM</button>
+<button data-p="jazz">Jazz</button>
 </div>
 </div>
 
 <div class="card">
+<div class="row" style="margin-bottom:12px" id="tabs"><button class="p" data-mode="basic">Basic</button><button data-mode="advanced">Advanced</button></div>
 <label for="chords">Chords (one per bar, comma separated)</label>
-<textarea id="chords">Am7, Dm7, G7, Cmaj7</textarea>
+<textarea id="chords" placeholder="One chord per bar, like F#m, Bb, Dsus2, E5"></textarea>
 <div style="height:12px"></div>
 <label for="mel">Melody (bars separated by commas)</label>
-<textarea id="mel">E4-G4-A4-C5--, B4-A4-G4-E4, D4-E4-G4-A4-G4, E4-D4-C4--</textarea>
-<p class="legend" style="margin:10px 0 0">
-<code>-</code> between notes = normal note (1 beat) &nbsp;
-<code>--</code> after a note = held longer (2 beats) &nbsp;
-<code>,</code> = new bar &nbsp;
-<code>R</code> = rest. Each chord plays for the length of its bar. Sharps/flats: <code>F#4</code>, <code>Bb3</code>.</p>
+<textarea id="mel" placeholder="Notes joined with -, bars separated by commas"></textarea>
+<p class="legend" id="legend" style="margin:10px 0 0"></p>
 </div>
 
 <div class="card">
@@ -99,14 +103,37 @@ code{font-family:ui-monospace,Menlo,monospace;background:var(--bg);padding:1px 5
 <div><label for="cs">Chord style</label>
 <select id="cs"><option value="block">Block (held)</option><option value="strum">Strum</option><option value="arp">Arpeggio</option></select></div>
 <div><label for="bpm">Tempo (BPM)</label><input id="bpm" type="number" min="40" max="220" value="96"></div>
+<div><label for="len">Length</label><select id="len"><option value="0">One pass</option><option value="30">30 sec</option><option value="60" selected>1 min</option><option value="120">2 min</option><option value="180">3 min</option><option value="300">5 min</option></select></div>
 </div>
 </div>
+
+<details class="card"><summary style="cursor:pointer;font-size:14px;color:var(--mute)">Advanced sound settings (bass, drums, effects, volumes)</summary>
+<div class="grid" style="margin-top:12px">
+<div><label for="bi">Bass instrument</label><select id="bi"></select></div>
+<div><label for="bs">Bass pattern</label><select id="bs"><option value="none">Off</option><option value="root">Root notes</option><option value="pulse">Eighth pulse</option><option value="walk">Walking</option></select></div>
+<div><label for="dp">Drums</label><select id="dp"><option value="none">None</option><option value="rock">Rock</option><option value="pop">Pop</option><option value="edm">EDM / house</option><option value="hiphop">Hip-hop</option><option value="jazz">Jazz swing</option><option value="bossa">Bossa nova</option><option value="ballad">Ballad</option></select></div>
+
+<div><label for="tr">Transpose (semitones)</label><input id="tr" type="number" min="-12" max="12" value="0"></div>
+<div><label>Sound source</label><label style="text-transform:none;font-size:15px;color:var(--ink);letter-spacing:0"><input type="checkbox" id="useSamples" checked> Real instrument samples (needs internet)</label></div>
+
+</div>
+<div class="grid" style="margin-top:14px">
+<div><label for="sw">Swing</label><input id="sw" type="range" min="0" max="100" value="0"></div>
+<div><label for="rv">Reverb</label><input id="rv" type="range" min="0" max="100" value="20"></div>
+<div><label for="br">Brightness</label><input id="br" type="range" min="0" max="100" value="100"></div>
+<div><label for="vm">Melody volume</label><input id="vm" type="range" min="0" max="100" value="100"></div>
+<div><label for="vc">Chords volume</label><input id="vc" type="range" min="0" max="100" value="100"></div>
+<div><label for="vb">Bass volume</label><input id="vb" type="range" min="0" max="100" value="100"></div>
+<div><label for="vd">Drums volume</label><input id="vd" type="range" min="0" max="100" value="80"></div>
+</div>
+</details>
 
 <div class="card">
 <div class="row">
 <button class="p" id="play">Generate &amp; play</button>
 <button id="stop" disabled>Stop</button>
 <button id="dl" disabled>Download MP3</button>
+<label style="display:flex;align-items:center;gap:6px;margin:0;text-transform:none;letter-spacing:0;font-size:15px;color:var(--ink)"><input type="checkbox" id="lp" checked> Loop</label>
 </div>
 <div class="bar"><i id="pg"></i></div>
 <div id="st"></div>
@@ -126,20 +153,41 @@ const INS = {
   flute:   {n:'Flute',        h:[[1,1],[2,.12],[3,.05]], a:.07, dec:0, sus:1, r:.12, vib:.006},
   synth:   {n:'Synth lead',   h:[[1,1],[2,.5],[3,.33],[4,.25],[5,.2],[6,.17],[7,.14]], a:.01, dec:2, sus:.7, r:.12},
   bass:    {n:'Bass',         h:[[1,1],[2,.35],[3,.12]], a:.01, dec:1.6, sus:.2, r:.15},
+  violin:  {n:'Violin', h:[[1,1],[2,.7],[3,.5],[4,.35],[5,.25],[6,.15]], a:.09, dec:0, sus:1, r:.2, vib:.006},
+  trumpet: {n:'Trumpet', h:[[1,1],[2,.9],[3,.7],[4,.5],[5,.35],[6,.2]], a:.05, dec:.5, sus:.85, r:.1, vib:.003},
+  nylon:   {n:'Nylon guitar', ks:true, sust:.995},
+  cleang:  {n:'Clean electric guitar', ks:true, sust:.997},
+  accordion:{n:'Accordion', h:[[1,1],[2,.5],[3,.6],[4,.2],[1.01,.8]], a:.04, dec:0, sus:1, r:.08},
+  eguitar: {n:'Electric guitar (drive)', ks:true, drive:4, sust:.9985},
+  brass:   {n:'Brass', h:[[1,1],[2,.8],[3,.6],[4,.45],[5,.3],[6,.2]], a:.06, dec:.6, sus:.8, r:.12, vib:.003},
+  sax:     {n:'Saxophone', h:[[1,1],[2,.6],[3,.9],[4,.3],[5,.4]], a:.05, dec:0, sus:1, r:.12, vib:.005},
+  cello:   {n:'Cello', h:[[1,1],[2,.6],[3,.45],[4,.3],[5,.2]], a:.12, dec:0, sus:1, r:.25, vib:.004},
+  harp:    {n:'Harp', h:[[1,1],[2,.3],[3,.15]], a:.003, dec:2.2, sus:0, r:.3},
+  pad:     {n:'Warm pad', h:[[1,1],[1.006,.8],[2,.3],[3,.12]], a:.6, dec:0, sus:1, r:.9},
+  choir:   {n:'Choir', h:[[1,1],[1.004,.7],[2,.5],[3,.3],[4,.1]], a:.35, dec:0, sus:1, r:.5, vib:.005},
+  harpsi:  {n:'Harpsichord', h:[[1,1],[2,.8],[3,.6],[4,.5],[5,.4],[6,.3]], a:.002, dec:3, sus:0, r:.1},
+  musicbox:{n:'Music box', h:[[1,1],[4,.3],[6.3,.1]], a:.002, dec:2, sus:0, r:.3},
+  vibes:   {n:'Vibraphone', h:[[1,1],[4,.15],[10,.05]], a:.003, dec:1, sus:0, r:.5},
   marimba: {n:'Marimba',      h:[[1,1],[4,.35],[10,.08]], a:.002, dec:4, sus:0, r:.1},
   bell:    {n:'Bell',         h:[[1,1],[2.76,.5],[5.4,.3],[8.93,.15]], a:.002, dec:1.1, sus:0, r:.4}
 };
 const $ = id => document.getElementById(id);
-for (const k in INS) { for (const s of ['mi','ci']) $(s).add(new Option(INS[k].n, k)); }
-$('mi').value = 'piano'; $('ci').value = 'piano';
+for (const k in INS) { for (const s of ['mi','ci','bi']) $(s).add(new Option(INS[k].n, k)); }
+$('mi').value = 'piano'; $('ci').value = 'piano'; $('bi').value = 'bass';
 
+const NOTES = {mel:'E4-G4-A4-C5--, B4-A4-G4-E4, D4-E4-G4-A4-G4, E4-D4-C4--', chords:'Am7, Dm7, G7, Cmaj7'};
+const BASE = {bs:'none', dp:'none', sw:0, rv:20, br:100, tr:0, bpm:96};
 const PRESETS = {
-  piano:  {mel:'E4-G4-A4-C5--, B4-A4-G4-E4, D4-E4-G4-A4-G4, E4-D4-C4--', ch:'Am7, Dm7, G7, Cmaj7', mi:'piano', ci:'piano', cs:'block'},
-  guitar: {mel:'E4-G4-A4-C5--, B4-A4-G4-E4, D4-E4-G4-A4-G4, E4-D4-C4--', ch:'Am7, Dm7, G7, Cmaj7', mi:'guitar', ci:'guitar', cs:'strum'}
+  piano:  {mi:'piano', ci:'piano', cs:'block'},
+  guitar: {mi:'guitar', ci:'guitar', cs:'strum'},
+  rock:   {mi:'eguitar', ci:'eguitar', cs:'strum', bi:'bass', bs:'pulse', dp:'rock', bpm:120, rv:15},
+  cinema: {mi:'strings', ci:'pad', cs:'block', bi:'cello', bs:'root', dp:'none', bpm:70, rv:60},
+  edm:    {mi:'synth', ci:'pad', cs:'arp', bi:'bass', bs:'pulse', dp:'edm', bpm:124, rv:25},
+  jazz:   {mi:'sax', ci:'piano', cs:'block', bi:'bass', bs:'walk', dp:'jazz', bpm:110, sw:70, rv:25}
 };
 document.querySelectorAll('[data-p]').forEach(b => b.onclick = () => {
-  const p = PRESETS[b.dataset.p];
-  $('mel').value = p.mel; $('chords').value = p.ch; $('mi').value = p.mi; $('ci').value = p.ci; $('cs').value = p.cs;
+  const o = Object.assign({}, NOTES, BASE, PRESETS[b.dataset.p]);
+  for (const k in o) { const el = $(k); if (el) el.value = o[k]; }
 });
 
 const SEMI = {C:0,D:2,E:4,F:5,G:7,A:9,B:11};
@@ -151,30 +199,38 @@ function pc(name){ // pitch class from e.g. "F#", "Bb"
 const midiHz = m => 440 * Math.pow(2, (m - 69) / 12);
 
 function parseMelody(text){
-  const bars = []; let first = true;
-  for (let raw of text.replace(/\./g,'').split(',')) {
-    raw = raw.trim(); if (!raw) continue;
-    const notes = []; let m; const re = /([A-Ga-g][#b]?\d|[Rr])(-*)/g;
-    const left = raw.replace(re, '').replace(/\s+/g,'');
+  const bars = [];
+  for (let raw of text.split(/[,|;\n]+/)) {
+    raw = raw.replace(/(\/\d+t?)\.|\./g, (m, d) => d || '').trim(); if (!raw) continue;
+    const re = /([A-Ga-g][#b]?\d|[Rr])(?:\/(\d+)(t)?(\.)?)?(~)?(-*)/g;
+    const left = raw.replace(re, '').replace(/\s+/g, '');
     if (left) throw new Error('Cannot read "' + left + '" in melody bar: ' + raw);
+    const notes = []; let m, tie = false;
     while ((m = re.exec(raw))) {
-      const t = m[1], beats = m[2].length >= 2 ? 2 : 1;
-      if (/^[Rr]$/.test(t)) notes.push({rest:true, beats});
-      else {
-        const oct = parseInt(t.slice(-1)), p = pc(t.slice(0,-1));
-        notes.push({midi:(oct + 1) * 12 + p, beats});
-      }
+      const t = m[1]; let beats;
+      if (m[2]) {
+        const n = +m[2];
+        if (![1,2,4,8,16,32].includes(n)) throw new Error('Unknown note length "/' + n + '" in bar: ' + raw);
+        beats = 4 / n; if (m[3]) beats *= 2 / 3; if (m[4]) beats *= 1.5;
+      } else beats = m[6].length >= 2 ? 2 : 1;
+      const rest = /^[Rr]$/.test(t);
+      const midi = rest ? null : (parseInt(t.slice(-1)) + 1) * 12 + pc(t.slice(0, -1));
+      const prev = notes[notes.length - 1];
+      if (tie && prev && !rest && !prev.rest && prev.midi === midi) prev.beats += beats;
+      else notes.push(rest ? {rest:true, beats} : {midi, beats});
+      tie = !!m[5];
     }
     bars.push(notes);
   }
   return bars;
 }
+const parseChordBar = str => str.replace(/\./g, '').split('-').map(c => c.trim()).filter(Boolean).map(parseChord);
 function parseChord(c){
   const m = /^([A-Ga-g][#b]?)(.*)$/.exec(c.trim());
   if (!m) throw new Error('Cannot read chord "' + c + '"');
   const root = pc(m[1][0].toUpperCase() + m[1].slice(1)), q = m[2];
   let iv;
-  if (/^dim/.test(q)) iv = [0,3,6]; else if (/^aug|^\+/.test(q)) iv = [0,4,8];
+  if (/^5$/.test(q)) iv = [0,7,12]; else if (/^dim/.test(q)) iv = [0,3,6]; else if (/^aug|^\+/.test(q)) iv = [0,4,8];
   else if (/^sus2/.test(q)) iv = [0,2,7]; else if (/^sus/.test(q)) iv = [0,5,7];
   else if (/^m(?!aj)|^min/.test(q)) iv = [0,3,7]; else iv = [0,4,7];
   if (/maj7|M7/.test(q)) iv.push(11);
@@ -191,13 +247,14 @@ function voice(key, f, dur){
     const N = Math.max(2, Math.round(SR / f)), len = Math.floor(SR * Math.min(dur + .5, 3.5));
     const buf = new Float32Array(N), out = new Float32Array(len);
     for (let i = 0; i < N; i++) buf[i] = Math.random() * 2 - 1;
-    let idx = 0, damp = .9965 - Math.min(.003, f / 200000);
+    let idx = 0, damp = p.sust || (.9965 - Math.min(.003, f / 200000));
     for (let i = 0; i < len; i++) {
       const nx = (idx + 1) % N;
       out[i] = buf[idx];
       buf[idx] = damp * .5 * (buf[idx] + buf[nx]);
       idx = nx;
     }
+    if (p.drive) for (let i = 0; i < len; i++) out[i] = Math.tanh(out[i] * p.drive) * .7;
     const rel = Math.floor(SR * .25), end = Math.floor(SR * dur);
     for (let i = 0; i < len; i++) if (i > end) out[i] *= Math.max(0, 1 - (i - end) / rel);
     return out;
@@ -214,57 +271,177 @@ function voice(key, f, dur){
     const ph = w * i + (p.vib ? p.vib * Math.sin(2 * Math.PI * 5.2 * t) * f / 5.2 * 0 + p.vib * 40 * Math.sin(2 * Math.PI * 5.2 * t) : 0);
     let s = 0;
     for (const [mu, a] of p.h) if (f * mu < SR / 2) s += a * Math.sin(ph * mu);
-    out[i] = s / norm * e;
+    let v = s / norm;
+    if (p.drive) v = Math.tanh(v * p.drive * 1.5) / Math.tanh(p.drive * 1.5);
+    if (p.noise) v += p.noise * (Math.random() * 2 - 1);
+    out[i] = v * e;
   }
   return out;
 }
 
-function compose(){
+const DR = {
+  rock:{k:'x.......x.x.....',s:'....x.......x...',h:'x.x.x.x.x.x.x.x.'},
+  pop:{k:'x.....x.x.......',s:'....x.......x...',h:'x.x.x.x.x.x.x.x.'},
+  edm:{k:'x...x...x...x...',c:'....x.......x...',o:'..x...x...x...x.',h:'x.x.x.x.x.x.x.x.'},
+  hiphop:{k:'x.....x...x.....',s:'....x.......x...',h:'x.x.x.x.x.x.x.xx'},
+  jazz:{k:'x...........x...',s:'.......x.....x..',h:'x.....x.x.....x.'},
+  bossa:{k:'x..x..x.x..x..x.',r:'x..x..x...x.x...',h:'x.x.x.x.x.x.x.x.'},
+  ballad:{k:'x.......x.......',s:'........x.......',h:'x...x...x...x...'}
+};
+const DG = {k:.9,s:.6,h:.2,o:.25,c:.5,r:.45};
+function drum(buf, type, at, g){
+  const o = Math.floor(at * SR), L = Math.floor({k:.35,s:.25,h:.05,o:.3,c:.2,r:.04}[type] * SR); let pv = 0;
+  for (let i = 0; i < L && o + i < buf.length; i++) {
+    const t = i / SR, n = Math.random() * 2 - 1; let v = 0;
+    if (type === 'k') v = Math.sin(2 * Math.PI * (45 * t + 90 * (1 - Math.exp(-35 * t)) / 35)) * Math.exp(-9 * t);
+    else if (type === 's') v = n * Math.exp(-20 * t) * .8 + Math.sin(2 * Math.PI * 185 * t) * Math.exp(-28 * t) * .5;
+    else if (type === 'h') v = (n - pv) * .5 * Math.exp(-70 * t);
+    else if (type === 'o') v = (n - pv) * .5 * Math.exp(-10 * t);
+    else if (type === 'c') v = n * Math.exp(-25 * t);
+    else v = Math.sin(2 * Math.PI * 1800 * t) * Math.exp(-90 * t);
+    pv = n; buf[o + i] += v * g * DG[type];
+  }
+}
+function reverb(x, amt){
+  const mk = d => ({b:new Float32Array(d), i:0});
+  const cb = [1557,1617,1491,1422,1277,1356].map(mk), ap = [225,556].map(mk);
+  for (let n = 0; n < x.length; n++) {
+    const inp = x[n]; let sum = 0;
+    for (const c of cb) { const y = c.b[c.i]; c.b[c.i] = inp + y * .84; c.i = (c.i + 1) % c.b.length; sum += y; }
+    sum /= 6;
+    for (const a of ap) { const d = a.b[a.i], y = -.5 * sum + d; a.b[a.i] = sum + .5 * y; a.i = (a.i + 1) % a.b.length; sum = y; }
+    x[n] = inp * (1 - amt * .3) + sum * amt * 1.5;
+  }
+}
+const val = id => +$(id).value;
+
+/* ---------- real instrument samples (FluidR3 GM soundfont, loaded on demand) ---------- */
+const SF = {piano:'acoustic_grand_piano', guitar:'acoustic_guitar_steel', nylon:'acoustic_guitar_nylon', cleang:'electric_guitar_clean', eguitar:'distortion_guitar',
+  epiano:'electric_piano_1', organ:'drawbar_organ', strings:'string_ensemble_1', flute:'flute', synth:'lead_2_sawtooth', bass:'electric_bass_finger',
+  marimba:'marimba', bell:'tubular_bells', brass:'brass_section', sax:'tenor_sax', cello:'cello', harp:'orchestral_harp', pad:'pad_2_warm',
+  choir:'choir_aahs', harpsi:'harpsichord', musicbox:'music_box', vibes:'vibraphone', violin:'violin', trumpet:'trumpet', accordion:'accordion'};
+const RING = new Set(['piano','guitar','nylon','cleang','eguitar','epiano','marimba','bell','harp','harpsi','musicbox','vibes']);
+const SFBASE = ['https://cdn.jsdelivr.net/gh/gleitz/midi-js-soundfonts@gh-pages/FluidR3_GM/', 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/', 'https://raw.githubusercontent.com/gleitz/midi-js-soundfonts/gh-pages/FluidR3_GM/'];
+const NN = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+const SAMPLES = {};
+let dctx = null;
+function loadInstrument(key){
+  if (SAMPLES[key]) return SAMPLES[key].p;
+  const S = SAMPLES[key] = {notes:null, bufs:{}, fail:false};
+  S.p = (async () => {
+    for (const base of SFBASE) {
+      try {
+        const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 30000);
+        const r = await fetch(base + SF[key] + '-mp3.js', {signal: ctl.signal}); clearTimeout(to);
+        if (!r.ok) continue;
+        const txt = await r.text(), notes = {}, re = /"([A-G][b#]?\d)":\s*"data:audio\/mp3;base64,([^"]+)"/g; let m;
+        while ((m = re.exec(txt))) notes[m[1]] = m[2];
+        if (Object.keys(notes).length > 20) { S.notes = notes; return S; }
+      } catch (e) {}
+    }
+    S.fail = true; return S;
+  })();
+  return S.p;
+}
+async function getBuf(key, midi){
+  const S = SAMPLES[key]; if (!S || S.fail || !S.notes) return null;
+  if (S.bufs[midi] !== undefined) return S.bufs[midi];
+  const b64 = S.notes[NN[((midi % 12) + 12) % 12] + (Math.floor(midi / 12) - 1)];
+  if (!b64) return (S.bufs[midi] = null);
+  try {
+    const bin = atob(b64), u = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    dctx = dctx || new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, SR, SR);
+    const ab = await dctx.decodeAudioData(u.buffer), out = new Float32Array(ab.getChannelData(0));
+    let pk = 0; for (let i = 0; i < out.length; i++) pk = Math.max(pk, Math.abs(out[i]));
+    const g = pk ? .7 / pk : 1; for (let i = 0; i < out.length; i++) out[i] *= g;
+    return (S.bufs[midi] = out);
+  } catch (e) { return (S.bufs[midi] = null); }
+}
+function sampleVoice(buf, dur, key){
+  const rel = Math.floor(SR * (RING.has(key) ? .9 : .2)), end = Math.floor(SR * dur), len = Math.min(buf.length, end + rel), out = new Float32Array(len);
+  for (let i = 0; i < len; i++) { let e = i < 150 ? i / 150 : 1; if (i > end) e *= 1 - (i - end) / rel; out[i] = buf[i] * e; }
+  return out;
+}
+
+async function compose(){
   const mel = parseMelody($('mel').value);
-  const chords = $('chords').value.split(',').map(s => s.trim()).filter(Boolean).map(parseChord);
+  const chords = $('chords').value.split(/[,|;\n]+/).map(s => s.trim()).filter(Boolean).map(parseChordBar);
   if (!mel.length && !chords.length) throw new Error('Nothing to play. Add some chords or notes.');
-  const bpm = Math.min(220, Math.max(40, +$('bpm').value || 96)), beat = 60 / bpm;
-  const mi = $('mi').value, ci = $('ci').value, cs = $('cs').value;
+  const tr = Math.round(val('tr')) || 0, sw = val('sw') / 100;
+  const bpm = Math.min(220, Math.max(40, val('bpm') || 96)), beat = 60 / bpm;
+  const mi = $('mi').value, ci = $('ci').value, bi = $('bi').value, cs = $('cs').value, bs = $('bs').value, dp = $('dp').value;
   const nBars = Math.max(mel.length, chords.length);
-  const events = []; let t = 0;
+  const ev = {m:[], c:[], b:[]}; let t = 0;
   for (let b = 0; b < nBars; b++) {
     const notes = mel[b] || [];
-    const bars = notes.reduce((a, n) => a + n.beats, 0) || 4;
-    const barDur = bars * beat;
+    const bars = notes.reduce((a, n) => a + n.beats, 0) || 4, barDur = bars * beat;
     let nt = t;
-    for (const n of notes) { // melody
+    for (const n of notes) {
       const d = n.beats * beat;
-      if (!n.rest) events.push({ins:mi, f:midiHz(n.midi), start:nt, dur:d * .98, g:.55});
+      if (!n.rest) ev.m.push({ins:mi, f:midiHz(n.midi + tr), start:nt, dur:d * .98, g:.55});
       nt += d;
     }
-    const ch = chords[b] !== undefined ? chords[b] : (chords.length ? chords[chords.length - 1] : null);
-    if (ch) {
-      const g = .22;
-      if (cs === 'block') {
-        events.push({ins:ci, f:midiHz(ch[0] - 12), start:t, dur:barDur, g:g * 1.1});
-        ch.forEach(m => events.push({ins:ci, f:midiHz(m), start:t, dur:barDur, g}));
-      } else if (cs === 'strum') {
-        const hits = [0, .5, 1.5, 2.5, 3.5].map(x => x * beat).filter(x => x < barDur);
-        hits.forEach((h, hi) => {
-          const order = hi % 2 ? ch.slice().reverse() : ch;
-          order.forEach((m, k) => events.push({ins:ci, f:midiHz(m), start:t + h + k * .022, dur:Math.max(.4, beat * 1.5), g:g * (hi === 0 ? 1.1 : .8)}));
+    const rawBar = chords[b] !== undefined ? chords[b] : (chords.length ? chords[chords.length - 1] : null);
+    if (rawBar) rawBar.forEach((raw, idx) => {
+      const t0 = t + idx * barDur / rawBar.length, bd = barDur / rawBar.length;
+      const ch = raw.map(m => m + tr), g = .22;
+      if (cs === 'block') ch.forEach(m => ev.c.push({ins:ci, f:midiHz(m), start:t0, dur:bd, g}));
+      else if (cs === 'strum') {
+        [0, .5, 1.5, 2.5, 3.5].map(x => x * beat).filter(x => x < bd).forEach((h, hi) => {
+          (hi % 2 ? ch.slice().reverse() : ch).forEach((m, k) => ev.c.push({ins:ci, f:midiHz(m), start:t0 + h + k * .022, dur:Math.max(.4, beat * 1.5), g:g * (hi === 0 ? 1.1 : .8)}));
         });
       } else {
         const seq = [ch[0], ch[1], ch[2], ch[3] || ch[1] + 12, ch[2], ch[1]];
-        for (let i = 0, x = 0; x < barDur - .01; i++, x += beat / 2)
-          events.push({ins:ci, f:midiHz(seq[i % seq.length]), start:t + x, dur:beat * .9, g:g * 1.1});
+        for (let i = 0, x = 0; x < bd - .01; i++, x += beat / 2)
+          ev.c.push({ins:ci, f:midiHz(seq[i % seq.length]), start:t0 + x + (i % 2 ? sw * beat / 6 : 0), dur:beat * .9, g:g * 1.1});
       }
-    }
+      const root = ch[0] - 12, gb = .5;
+      if (bs === 'root') ev.b.push({ins:bi, f:midiHz(root), start:t0, dur:bd * .95, g:gb});
+      else if (bs === 'pulse') for (let x = 0, i = 0; x < bd - .01; x += beat / 2, i++) ev.b.push({ins:bi, f:midiHz(root), start:t0 + x + (i % 2 ? sw * beat / 6 : 0), dur:beat * .45, g:gb});
+      else if (bs === 'walk') for (let x = 0, i = 0; x < bd - .01; x += beat, i++) ev.b.push({ins:bi, f:midiHz(root + [0, 7, 12, 7][i % 4]), start:t0 + x, dur:beat * .9, g:gb});
+    });
     t += barDur;
   }
-  const tail = 1.8, total = Math.ceil((t + tail) * SR), mix = new Float32Array(total);
-  for (const ev of events) {
-    const v = voice(ev.ins, ev.f, ev.dur), o = Math.floor(ev.start * SR);
-    for (let i = 0; i < v.length && o + i < total; i++) mix[o + i] += v[i] * ev.g;
+  const body = t, tail = 2.5, len = Math.ceil((body + tail) * SR);
+  const trk = {m:new Float32Array(len), c:new Float32Array(len), b:new Float32Array(len), d:new Float32Array(len)};
+  const useS = $('useSamples').checked, warn = [], hz2m = f => Math.round(69 + 12 * Math.log2(f / 440));
+  if (useS) {
+    const need = {};
+    for (const k of ['m','c','b']) for (const e of ev[k]) if (SF[e.ins]) (need[e.ins] = need[e.ins] || new Set()).add(hz2m(e.f));
+    const keys = Object.keys(need);
+    if (keys.length) {
+      st('Loading instrument sounds (first time can take a few seconds)…');
+      await Promise.all(keys.map(loadInstrument));
+      keys.forEach(k => { if (SAMPLES[k].fail) warn.push(INS[k].n); });
+      await Promise.all(keys.filter(k => !SAMPLES[k].fail).flatMap(k => [...need[k]].map(m => getBuf(k, m))));
+      st('Generating…');
+    }
   }
-  let pk = 0; for (let i = 0; i < total; i++) pk = Math.max(pk, Math.abs(mix[i]));
-  const k = pk > 0 ? .9 / pk : 1; for (let i = 0; i < total; i++) mix[i] *= k;
-  return mix;
+  for (const k of ['m','c','b']) for (const e of ev[k]) {
+    const sb = useS && SAMPLES[e.ins] && SAMPLES[e.ins].bufs[hz2m(e.f)];
+    const v = sb ? sampleVoice(sb, e.dur, e.ins) : voice(e.ins, e.f, e.dur), o = Math.floor(e.start * SR);
+    for (let i = 0; i < v.length && o + i < len; i++) trk[k][o + i] += v[i] * e.g;
+  }
+  if (dp !== 'none') {
+    const pat = DR[dp], step = beat / 4;
+    for (let n = 0; n * step < body - .001; n++) {
+      const idx = n % 16, at = n * step + (idx % 4 === 2 ? sw * beat / 6 : 0);
+      for (const k in pat) if (pat[k][idx] === 'x') drum(trk.d, k, at, 1);
+    }
+  }
+  const vol = {m:val('vm') / 100, c:val('vc') / 100, b:val('vb') / 100, d:val('vd') / 100};
+  const base = new Float32Array(len);
+  for (let i = 0; i < len; i++) base[i] = trk.m[i] * vol.m + trk.c[i] * vol.c + trk.b[i] * vol.b + trk.d[i] * vol.d;
+  const target = val('len'), reps = Math.max(1, Math.min(Math.ceil(target / body) || 1, Math.floor(600 / body) || 1));
+  const total = Math.ceil((reps * body + tail) * SR), out = new Float32Array(total);
+  for (let r = 0; r < reps; r++) { const off = Math.floor(r * body * SR); for (let i = 0; i < len && off + i < total; i++) out[off + i] += base[i]; }
+  const br = val('br') / 100;
+  if (br < .99) { const a = 1 - Math.exp(-2 * Math.PI * 300 * Math.pow(60, br) / SR); let y = 0; for (let i = 0; i < total; i++) { y += a * (out[i] - y); out[i] = y; } }
+  const rv = val('rv') / 100; if (rv > 0) reverb(out, rv);
+  let pk = 0; for (let i = 0; i < total; i++) pk = Math.max(pk, Math.abs(out[i]));
+  const k = pk > 0 ? .9 / pk : 1; for (let i = 0; i < total; i++) out[i] *= k;
+  return {mix:out, loopEnd:reps * body, warn};
 }
 
 function toMp3(f32){
@@ -319,31 +496,115 @@ $('aiTest').onclick = () => { try { localStorage.setItem('gemini_key', $('aiKey'
 $('aiKey').addEventListener('change', () => { try { localStorage.setItem('gemini_key', $('aiKey').value.trim()); } catch (e) {} checkKey(); });
 checkKey();
 
-function aiSystemPrompt(){
-  return `You are a music composer for a web app that plays text notation. Reply with JSON only, no markdown.
-
-JSON shape:
-{"chords":"...","melody":"...","bpm":96,"melodyInstrument":"piano","chordInstrument":"piano","chordStyle":"block"}
-
-Notation rules:
-- "chords": chord names separated by commas, one chord per bar. Example: "Am7, Dm7, G7, Cmaj7". Allowed qualities: major, m, 7, m7, maj7, 6, 9, dim, aug, sus2, sus4.
-- "melody": bars separated by commas. Inside a bar, notes are separated by "-". Example bar: "E4-G4-A4-C5".
-- Note format: letter A-G, optional # or b, then octave number (e.g. C4, F#4, Bb3). Keep melody between C3 and C6.
-- A note followed by "--" (e.g. "C5--") is held longer (2 beats). A normal note is 1 beat.
-- Use "R" for a rest (e.g. "E4-R-G4").
-- Use "," only to separate bars. Do not use any other symbols or words.
-- The chord at position N plays under melody bar N, so give the same number of bars in both.
-- Example melody: "E4-G4-A4-C5--, B4-A4-G4-E4, D4-E4-G4-A4-G4, E4-D4-C4--"
-
-Other fields:
-- "bpm": integer 40-220 matching the mood.
-- "melodyInstrument" and "chordInstrument": one of ${Object.keys(INS).join(', ')}.
-- "chordStyle": one of block, strum, arp (use strum for guitar).
-Make the music fit the user's description (mood, key, style, length). Default to 4-8 bars.`;
+let mode = 'basic';
+const LEGEND = {
+  basic: '<code>-</code> between notes = normal note (1 beat) &nbsp; <code>--</code> after a note = held longer (2 beats) &nbsp; <code>,</code> = new bar &nbsp; <code>R</code> = rest. Each chord plays for the length of its bar. Sharps/flats use <code>#</code> or <code>b</code>.',
+  advanced: 'Length after a note: <code>/1</code> whole, <code>/2</code> half, <code>/4</code> quarter (default), <code>/8</code> eighth, <code>/16</code> sixteenth. Add <code>.</code> for dotted, <code>t</code> for triplet, <code>~</code> to tie to the next note of the same pitch. Example: <code>NOTE/8-NOTE/8-NOTE/4-NOTE/2</code>. Rest: <code>R/8</code>. Two chords in one bar: <code>Am-F</code> (splits the bar). Basic <code>--</code> still works.'
+};
+const PH = {
+  basic: ['NOTE-NOTE-NOTE, NOTE-NOTE-NOTE, ...', 'CHORD, CHORD, CHORD, ...'],
+  advanced: ['NOTE/8-NOTE/8-NOTE/4-NOTE/2, NOTE/4-R/8-NOTE/16-NOTE/16-NOTE/2, ...', 'CHORD, CHORD-CHORD, CHORD, ...']
+};
+function setMode(m){
+  mode = m;
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('p', b.dataset.mode === m));
+  $('legend').innerHTML = LEGEND[m]; $('mel').placeholder = PH[m][0]; $('chords').placeholder = PH[m][1];
 }
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => setMode(b.dataset.mode));
+setMode('basic');
+
+function notation(){
+  const chordTok = 'A chord is its root letter A-G (with an optional # or b) followed by an optional quality: m, 5 (power chord), 7, m7, maj7, 6, 9, dim, aug, sus2, sus4. Use 7th chords only when the style calls for them (for example jazz or soul).';
+  const noteTok = 'A note is its letter name A-G, an optional # or b for sharps and flats, then an octave number from 3 to 6 (standard note names).';
+  if (mode === 'advanced') return `Chords: format "CHORD, CHORD, CHORD, ...". Write one chord per bar and separate chords with commas. The number of chords is the number of bars. A bar may hold two or more chords joined with "-" (CHORD-CHORD), which share the bar equally. ${chordTok}
+Melody: format "NOTE/8-NOTE/8-NOTE/4-NOTE/2, NOTE/4-R/8-NOTE/16-NOTE/16-NOTE/2, ...". Separate each bar with a comma (never | or line breaks) and notes inside a bar with a hyphen. ${noteTok}
+- A length goes after the note: /1 whole (4 beats), /2 half (2 beats), /4 quarter (1 beat), /8 eighth (0.5), /16 sixteenth (0.25).
+- Add "." after the length for a dotted note (x1.5), for example NOTE/8.
+- Add "t" after the length for a triplet (x2/3), for example NOTE/8t. Three eighth triplets fill one beat.
+- Add "~" to tie a note to the next note of the same pitch in the same bar, for example NOTE/4~NOTE/8.
+- A note with no length lasts 1 beat, and NOTE-- is still 2 beats. Use R with the same lengths for rests, for example R/8.
+- Different note lengths can be mixed inside one bar.
+Each chord plays for the entire length of its bar, so chords and melody need the same number of bars.`;
+  return `Chords: format "CHORD, CHORD, CHORD, ...". Write one chord per bar and separate chords with commas. The number of chords is the number of bars. ${chordTok}
+Melody: format "NOTE-NOTE-NOTE..., NOTE-NOTE-NOTE..., ...". Separate each bar with a comma (never | or line breaks). Separate notes within a bar with a hyphen. ${noteTok}
+- A normal note lasts 1 beat. Add "--" after a note to make it last 2 beats. Use "R" for a rest.
+Each chord plays for the entire length of its bar, so chords and melody need the same number of bars.
+Simple example of the format: Chords: CHORD, CHORD, CHORD, CHORD  Melody: NOTE-NOTE-NOTE, NOTE--NOTE, R-NOTE-NOTE, NOTE-NOTE--`;
+}
+function melodyRule(){
+  return mode === 'advanced'
+    ? '- Use mixed note lengths inside bars: eighth and sixteenth runs, dotted notes, triplets, ties and syncopation where the style needs drive (rock, EDM, funk, hip-hop), and longer notes for calm styles. Make every melody bar add up to exactly 4 beats. Pick the register that suits the style, low for riffs and basslines, high for leads. Change chords twice in a bar (CHORD-CHORD) when it helps.'
+    : '- Melody bars should differ in length (3 to 8 beats). Mix long held notes, quick runs, repeated notes, rests and leaps, and do not end every bar with a held note. Pick the register that suits the style, low for riffs and basslines, high for leads.';
+}
+
+function aiSystemPrompt(){
+  return `You are a music composer and sound designer for a web app that plays text notation. Reply with JSON only, no markdown.
+
+Start from the user's description and style. Choose the key, chords, tempo, instruments and energy yourself. Do not fall back on a default key, a default chord progression or a gentle mood. Never copy the notation examples below, they only show the format.
+
+NOTATION FORMAT
+${notation()}
+
+COMPOSING
+- The request gives a key and mode and a harmonic flavor. Build the chords and melody from that key and mode (and use the flavor at least once), unless the user's description names its own key.
+- Never use these progressions or their rotations: I-V-vi-IV, vi-IV-I-V, i-VI-III-VII, I-vi-IV-V. Do not just repeat a 4-chord loop: change chords as the song develops, so the second half is different from the first.
+${melodyRule()}
+
+STYLE
+Match tempo, rhythm and energy to the style: rock is 110-140 bpm with electric guitar and drums, EDM is 120-130 bpm with drums and synths, cinematic is slow and wide with pads and strings, upbeat styles use busier, rhythmic notes. Not everything should be mellow. Vary the key and mode from song to song.
+
+JSON FIELDS
+"chords", "melody", "bpm" (integer 40-220), "chordStyle" (block, strum or arp), "bassPattern" (none, root, pulse or walk), "drums" (none, rock, pop, edm, hiphop, jazz, bossa or ballad), "swing" (0-100), "reverb" (0-100), "transpose" (-12 to 12).
+
+INSTRUMENTS
+Use built-in instruments by name, which play real instrument recordings. Choose ones that fit the style: ${Object.keys(INS).filter(k => !k.startsWith('ai_')).join(', ')}.
+Only when the description asks for a synth, futuristic or otherwise unusual sound may you design a custom synth instrument instead, for the melody, the chords or the bass.
+Put designs in "designed": {"melody": INSTR, "chords": INSTR, "bass": INSTR} (every key optional). INSTR is
+{"name": short name, "harmonics": [[multiplier, amplitude], ...] (1-8 pairs, multiplier 0.5-16, amplitude 0-1), "attack": seconds 0.002-1.5, "decay": rate 0-10 (0 holds, 1 slow fade, 4 pluck, 10 blip), "sustain": 0-1 (level kept after the decay), "release": seconds 0.05-2, "vibrato": 0-0.01, "drive": 0-5 (distortion), "noise": 0-0.4 (breath or hiss)}.
+Sound-design hints: only odd multipliers (1, 3, 5) sound hollow like a clarinet; strong upper harmonics sound bright and buzzy; a single harmonic is a soft sine; inharmonic multipliers such as 2.76 or 5.4 sound like bells or metal; two close multipliers such as 1 and 1.007 sound wide and chorused; fast attack with fast decay and no sustain is plucked or percussive; slow attack with sustain 1 is a pad or bowed sound; drive adds grit.
+For any slot you do not design, set "melodyInstrument", "chordInstrument" or "bassInstrument" to a built-in name.`;
+}
+
 
 try { const sm = localStorage.getItem('gemini_model'); if (sm) $('aiModel').value = sm; } catch (e) {}
 $('aiModel').onchange = () => { try { localStorage.setItem('gemini_model', $('aiModel').value); } catch (e) {} };
+
+const clamp = (v, lo, hi, d) => { v = +v; return isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d; };
+function cleanInstrument(o){
+  if (!o || !Array.isArray(o.harmonics)) return null;
+  const h = o.harmonics.slice(0, 8).map(x => [clamp(x && x[0], .5, 16, 1), clamp(x && x[1], 0, 1, 0)]).filter(x => x[1] > 0);
+  if (!h.length) return null;
+  return {n:String(o.name || 'Designed').slice(0, 24), h, a:clamp(o.attack, .002, 1.5, .01), dec:clamp(o.decay, 0, 10, 0), sus:clamp(o.sustain, 0, 1, 1),
+    r:clamp(o.release, .05, 2, .2), vib:clamp(o.vibrato, 0, .01, 0), drive:clamp(o.drive, 0, 5, 0), noise:clamp(o.noise, 0, .4, 0)};
+}
+function useDesigned(slot, selId, o){
+  const p = cleanInstrument(o); if (!p) return false;
+  const key = 'ai_' + slot; INS[key] = p;
+  for (const id of ['mi','ci','bi']) {
+    let op = [...$(id).options].find(x => x.value === key);
+    if (!op) { op = new Option('', key); $(id).add(op); }
+    op.text = '✨ ' + p.n;
+  }
+  $(selId).value = key; return true;
+}
+function resetAll(){
+  const d = {mi:'piano', ci:'piano', bi:'bass', cs:'block', bs:'none', dp:'none', sw:0, rv:20, br:100, tr:0, bpm:96, vm:100, vc:100, vb:100, vd:80};
+  for (const k in d) $(k).value = d[k];
+}
+
+const MODES = ['major','natural minor','dorian','mixolydian','phrygian','lydian','harmonic minor'];
+const ROOTS = ['C','Db','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
+const FLAVORS = ['borrow one chord from the parallel key (modal interchange)', 'a chromatic mediant move (chords a third apart that share few notes)',
+  'a pedal bass note held under changing chords', 'a suspended chord that resolves', 'descending chromatic root movement', 'parallel power chords moving in 4ths or 5ths',
+  'a minor iv chord in a major key, or a major IV in a minor key', 'a surprise chord from outside the key before returning home'];
+const pick = a => a[Math.floor(Math.random() * a.length)];
+function randomSeed(style){
+  const st = style.toLowerCase();
+  const pool = /dark|tense/.test(st) ? ['natural minor','phrygian','harmonic minor','dorian']
+    : /upbeat|happy|folk|pop/.test(st) ? ['major','mixolydian','lydian','dorian'] : MODES;
+  const f1 = pick(FLAVORS); let f2 = pick(FLAVORS); while (f2 === f1) f2 = pick(FLAVORS);
+  return {key: pick(ROOTS) + ' ' + pick(pool), flavors: f1 + '; ' + f2};
+}
 
 $('aiGo').onclick = async () => {
   const ai = $('aiSt'), prompt = $('aiPrompt').value.trim(), key = $('aiKey').value.trim(), model = $('aiModel').value;
@@ -353,13 +614,17 @@ $('aiGo').onclick = async () => {
   try { localStorage.setItem('gemini_key', key); } catch (e) {}
   $('aiGo').disabled = true; say('Asking Gemini…');
   try {
+    const style = $('style').value, secs = val('len'), bars = secs <= 30 ? 8 : secs <= 60 ? 16 : 32;
+    const seed = randomSeed(style), userText = 'Description: ' + prompt + '\nStyle: ' + (style === 'auto' ? 'choose what best fits the description' : style) +
+      '\nKey and mode: ' + seed.key + '\nHarmonic flavor to include: ' + seed.flavors +
+      '\nWrite one loopable section of about ' + bars + ' bars. The app repeats it to fill ' + (secs ? secs + ' seconds' : 'one pass') + ', so the last bar should lead smoothly back into the first.';
     let res;
     try {
       res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent', {
         method: 'POST', headers: {'Content-Type':'application/json', 'x-goog-api-key': key},
         body: JSON.stringify({
           systemInstruction: {parts:[{text: aiSystemPrompt()}]},
-          contents: [{role:'user', parts:[{text: prompt}]}],
+          contents: [{role:'user', parts:[{text: userText}]}],
           generationConfig: {responseMimeType:'application/json', temperature: 1}
         })
       });
@@ -367,26 +632,39 @@ $('aiGo').onclick = async () => {
     const j = await res.json().catch(() => ({}));
     if (!res.ok) {
       const msg = (j.error && j.error.message) || ('Request failed (' + res.status + ')');
-      if (res.status === 429) { setConn('busy', 'Rate limit reached'); throw new Error('Rate limit reached. Wait a minute, or pick another model.'); }
+      if (res.status === 429) { setConn('busy', 'Rate limit reached'); const rd = ((j.error && j.error.details) || []).map(d => d.retryDelay).find(Boolean); throw new Error('Rate limit reached' + (rd ? ', try again in about ' + parseInt(rd) + 's' : '') + '. Each model has its own limit, so you can also pick another one.'); }
       if ([500, 503, 504].includes(res.status)) { setConn('busy', 'Gemini is busy'); throw new Error('Gemini is busy right now. Try again in a moment, or pick another model.'); }
       setConn('err', res.status === 400 || res.status === 403 ? 'Key rejected by Google' : 'Request error');
       throw new Error(msg);
     }
     const txt = (j.candidates && j.candidates[0] && j.candidates[0].content.parts.map(p => p.text || '').join('')) || '';
-    const o = JSON.parse(txt.replace(/```json|```/g, '').trim());
+    let o = JSON.parse(txt.replace(/```json|```/g, '').trim());
+    if (Array.isArray(o)) o = o[0] || {};
+    const toStr = v => Array.isArray(v) ? v.map(x => Array.isArray(x) ? x.join('-') : String(x)).join(', ') : (v == null ? '' : String(v));
+    const fix = v => toStr(v).replace(/\s*[|;\n]+\s*/g, ', ').trim();
+    o.melody = fix(o.melody); o.chords = fix(o.chords);
     if (!o.melody) throw new Error('Gemini returned no melody.');
     parseMelody(o.melody); // validate before applying
-    (o.chords || '').split(',').map(s => s.trim()).filter(Boolean).forEach(parseChord);
-    $('mel').value = o.melody; $('chords').value = o.chords || '';
+    (o.chords || '').split(/[,|;\n]+/).map(s => s.trim()).filter(Boolean).forEach(parseChordBar);
+    resetAll(); $('mel').value = o.melody; $('chords').value = o.chords || '';
     if (INS[o.melodyInstrument]) $('mi').value = o.melodyInstrument;
     if (INS[o.chordInstrument]) $('ci').value = o.chordInstrument;
     if (['block','strum','arp'].includes(o.chordStyle)) $('cs').value = o.chordStyle;
+    if (INS[o.bassInstrument]) $('bi').value = o.bassInstrument;
+    if (['none','root','pulse','walk'].includes(o.bassPattern)) $('bs').value = o.bassPattern;
+    if (['none','rock','pop','edm','hiphop','jazz','bossa','ballad'].includes(o.drums)) $('dp').value = o.drums;
+    const dz = o.designed || {}; let nd = 0;
+    for (const [slot, id] of [['m','mi'],['c','ci'],['b','bi']]) if (useDesigned(slot, id, dz[{m:'melody', c:'chords', b:'bass'}[slot]])) nd++;
+    for (const [k, id, lo, hi] of [['swing','sw',0,100],['reverb','rv',0,100],['transpose','tr',-12,12]]) if (o[k] != null && isFinite(o[k])) $(id).value = Math.min(hi, Math.max(lo, Math.round(+o[k])));
     if (+o.bpm) $('bpm').value = Math.min(220, Math.max(40, Math.round(+o.bpm)));
-    setConn('ok', 'Connected, key works'); say('Notes generated. Press "Generate & play" to listen.');
+    setConn('ok', 'Connected, key works'); say('Notes generated' + (nd ? ' with ' + nd + ' new instrument' + (nd > 1 ? 's' : '') : '') + '. Press "Generate & play" to listen.');
   } catch (e) { say('AI error: ' + e.message, true); }
   $('aiGo').disabled = false;
 };
 
+let loopSec = 0;
+const playMsg = () => st($('lp').checked ? 'Looping (' + loopSec.toFixed(0) + 's per loop). Untick Loop to let it finish.' : 'Playing…');
+$('lp').onchange = () => { if (src) { src.loop = $('lp').checked; src.loopEnd = loopSec; playMsg(); } };
 let ctx = null, src = null, data = null, raf = 0, t0 = 0, dur = 0;
 const st = (m, e) => { $('st').textContent = m; $('st').className = e ? 'err' : ''; };
 function stop(){
@@ -396,18 +674,20 @@ function stop(){
 $('stop').onclick = () => { stop(); st('Stopped.'); };
 $('play').onclick = () => {
   stop(); st('Generating…'); $('play').disabled = true; $('dl').disabled = true;
-  setTimeout(() => {
+  setTimeout(async () => {
     try {
-      data = compose();
+      const rs = await compose(); data = rs.mix;
       ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
       if (ctx.state === 'suspended') ctx.resume();
       const ab = ctx.createBuffer(1, data.length, SR); ab.copyToChannel(data, 0);
       src = ctx.createBufferSource(); src.buffer = ab; src.connect(ctx.destination);
-      dur = data.length / SR; t0 = ctx.currentTime; src.start();
+      dur = data.length / SR; t0 = ctx.currentTime; loopSec = rs.loopEnd; src.loopStart = 0; src.loopEnd = loopSec; src.loop = $('lp').checked;
+      src.start();
       src.onended = () => { stop(); st('Finished. Ready to download.'); };
       $('stop').disabled = false; $('dl').disabled = false;
-      st('Playing (' + dur.toFixed(1) + 's)…');
-      const tick = () => { $('pg').style.width = Math.min(100, (ctx.currentTime - t0) / dur * 100) + '%'; raf = requestAnimationFrame(tick); };
+      playMsg();
+      if (rs.warn.length) st($('st').textContent + ' Could not load real samples for ' + rs.warn.join(', ') + ' (offline?), used the built-in sound instead.', true);
+      const tick = () => { $('pg').style.width = ($('lp').checked ? ((ctx.currentTime - t0) % loopSec) / loopSec * 100 : Math.min(100, (ctx.currentTime - t0) / dur * 100)) + '%'; raf = requestAnimationFrame(tick); };
       tick();
     } catch (e) { st(e.message, true); }
     $('play').disabled = false;
